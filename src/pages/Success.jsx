@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
 import { useSocial } from '../context/SocialContext';
@@ -9,9 +10,21 @@ import { dprSet, thumb } from '../utils/image';
 
 export default function Success() {
   const { id } = useParams();
-  const { orders } = useShop();
+  const { orders, fetchOrder } = useShop();
   const { whatsappHref, whatsappLabel } = useSocial();
-  const order = orders.find((o) => o.id === id);
+  const [resolved, setResolved] = useState(null);
+  const order = orders.find((o) => o.id === id) || resolved;
+
+  useEffect(() => {
+    if (order) return undefined;
+    let alive = true;
+    fetchOrder(id).then((found) => {
+      if (alive && found) setResolved(found);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [id, order, fetchOrder]);
 
   if (!order) {
     return (

@@ -1,15 +1,34 @@
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
 import { useCatalog } from '../context/CatalogContext';
 import { formatTaka } from '../data/products';
 import { formatDeliveryDate } from '../data/orders';
-import { IconCart, IconTruck } from '../components/Icons';
+import { IconCart, IconSearch, IconTruck } from '../components/Icons';
 import OrderStatus, { StatusChip } from '../components/OrderStatus';
 import { dprSet, thumb } from '../utils/image';
 
 export default function Orders() {
-  const { orders, addToCart, pushToast } = useShop();
+  const { orders, addToCart, pushToast, lookupPhone, fetchOrders, ordersBusy, ordersError } = useShop();
   const { products } = useCatalog();
+  const [phone, setPhone] = useState(lookupPhone);
+  const didFetch = useRef(false);
+
+  useEffect(() => {
+    if (didFetch.current || !lookupPhone) return;
+    didFetch.current = true;
+    fetchOrders(lookupPhone).catch(() => {});
+  }, [lookupPhone, fetchOrders]);
+
+  const lookup = async (e) => {
+    e.preventDefault();
+    try {
+      const list = await fetchOrders(phone);
+      if (list.length === 0) pushToast('এই নম্বরে কোনো অর্ডার পাওয়া যায়নি', 'error');
+    } catch {
+      /* error state already set */
+    }
+  };
 
   const reorder = (order) => {
     order.items.forEach((item) => {
@@ -35,15 +54,38 @@ export default function Orders() {
           <span>My Orders</span>
         </nav>
         <h1 className="page-title">আমার অর্ডার</h1>
-        <p className="page-sub">আপনার সব অর্ডার এখানে সংরক্ষিত থাকে।</p>
+        <p className="page-sub">মোবাইল নম্বর দিয়ে আপনার সব অর্ডার দেখুন — স্ট্যাটাস সবসময় আপডেট থাকে।</p>
+
+        <form className="order-lookup" onSubmit={lookup}>
+          <label>
+            <span>ডেলিভারির মোবাইল নম্বর</span>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="01XXXXXXXXX"
+              inputMode="numeric"
+              autoComplete="tel"
+            />
+          </label>
+          <button type="submit" className="btn primary" disabled={ordersBusy}>
+            <IconSearch /> {ordersBusy ? 'খোঁজা হচ্ছে…' : 'অর্ডার খুঁজুন'}
+          </button>
+        </form>
+
+        {ordersError && (
+          <p className="order-lookup-error" role="alert">
+            {ordersError}
+          </p>
+        )}
 
         {orders.length === 0 ? (
           <div className="checkout-empty">
             <span className="empty-icon">
               <IconTruck />
             </span>
-            <h2>এখনও কোনো অর্ডার নেই</h2>
-            <p>প্রথম কেকটি অর্ডার করে শুরু করুন।</p>
+            <h2>{lookupPhone ? 'এই নম্বরে কোনো অর্ডার নেই' : 'এখনও কোনো অর্ডার দেখানো হয়নি'}</h2>
+            <p>{lookupPhone ? 'অন্য নম্বর দিয়ে খুঁজুন অথবা নতুন অর্ডার করুন।' : 'অর্ডার করার সময় দেওয়া মোবাইল নম্বর উপরে লিখুন।'}</p>
             <Link to="/shop" className="btn primary">
               কেক দেখুন
             </Link>

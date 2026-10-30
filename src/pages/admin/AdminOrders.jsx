@@ -10,7 +10,7 @@ function waLink(phone) {
 }
 
 export default function AdminOrders() {
-  const { orders, updateOrderStatus, deleteOrder, pushToast } = useShop();
+  const { adminOrders: orders, updateOrderStatus, deleteOrder, pushToast } = useShop();
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState('all');
   const [selectedId, setSelectedId] = useState(null);
@@ -54,15 +54,15 @@ export default function AdminOrders() {
     setConfirmDelete(false);
   };
 
-  const changeStatus = (id, status) => {
-    updateOrderStatus(id, status);
-    pushToast(`#${id} স্ট্যাটাস — ${status}`);
+  const changeStatus = async (id, status) => {
+    const ok = await updateOrderStatus(id, status);
+    if (ok) pushToast(`#${id} স্ট্যাটাস — ${status}`);
   };
 
-  const remove = (id) => {
-    deleteOrder(id);
+  const remove = async (id) => {
     close();
-    pushToast(`#${id} অর্ডার মুছে ফেলা হয়েছে`, 'error');
+    const ok = await deleteOrder(id);
+    if (ok) pushToast(`#${id} অর্ডার মুছে ফেলা হয়েছে`, 'error');
   };
 
   return (

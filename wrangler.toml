@@ -1,0 +1,9 @@
+name = "cakehaus"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cakehaus-db"
+database_id = "34950f8f-dfab-4fa1-bcf4-b8b18b0c62f2"

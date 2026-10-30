@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { api, notify } from '../api/client';
 
 const ShopContext = createContext(null);
 
 const CART_KEY = 'cakehaus_cart_v1';
 const ORDER_KEY = 'cakehaus_orders_v1';
+const PHONE_KEY = 'cakehaus_phone_v1';
 
 function load(key, fallback) {
   try {
@@ -14,34 +16,36 @@ function load(key, fallback) {
   }
 }
 
+function save(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* storage may be unavailable */
+  }
+}
+
 export function ShopProvider({ children }) {
   const [cart, setCart] = useState(() => load(CART_KEY, []));
   const [orders, setOrders] = useState(() => load(ORDER_KEY, []));
+  const [adminOrders, setAdminOrders] = useState([]);
+  const [lookupPhone, setLookupPhone] = useState(() => load(PHONE_KEY, ''));
   const [cartOpen, setCartOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
+  const [ordersBusy, setOrdersBusy] = useState(false);
+  const [ordersError, setOrdersError] = useState('');
   const toastId = useRef(0);
 
   useEffect(() => {
-    localStorage.setItem(CART_KEY, JSON.stringify(cart));
+    save(CART_KEY, cart);
   }, [cart]);
 
   useEffect(() => {
-    localStorage.setItem(ORDER_KEY, JSON.stringify(orders));
+    save(ORDER_KEY, orders);
   }, [orders]);
 
   useEffect(() => {
-    const syncOrders = (event) => {
-      if (event.key !== ORDER_KEY || !event.newValue) return;
-      try {
-        const parsed = JSON.parse(event.newValue);
-        setOrders((prev) => (JSON.stringify(prev) === event.newValue ? prev : parsed));
-      } catch {
-        /* ignore malformed payload from another tab */
-      }
-    };
-    window.addEventListener('storage', syncOrders);
-    return () => window.removeEventListener('storage', syncOrders);
-  }, []);
+    save(PHONE_KEY, lookupPhone);
+  }, [lookupPhone]);
 
   const pushToast = useCallback((message, tone = 'success') => {
     const id = ++toastId.current;
@@ -51,35 +55,44 @@ export function ShopProvider({ children }) {
     }, 3200);
   }, []);
 
-  const addToCart = useCallback((product, { qty = 1, sizeIndex = 0, unitPrice, note = '' } = {}) => {
-    const sizeLabel = product.sizes ? ['১ পাউন্ড', '২ পাউন্ড', '৩ পাউন্ড'][sizeIndex] : null;
-    const key = `${product.id}::${sizeIndex}::${note}`;
-    const price = unitPrice ?? product.price;
-    setCart((list) => {
-      const found = list.find((item) => item.key === key);
-      if (found) {
-        return list.map((item) => (item.key === key ? { ...item, qty: item.qty + qty } : item));
-      }
-      return [
-        ...list,
-        {
-          key,
-          id: product.id,
-          slug: product.slug,
-          name: product.name,
-          bn: product.bn,
-          image: product.image,
-          sizeLabel,
-          sizeIndex: product.sizes ? sizeIndex : 0,
-          unitPrice: price,
-          basePrice: product.price,
-          note,
-          qty,
-        },
-      ];
-    });
-    pushToast(`${product.name} কার্টে যোগ হয়েছে`);
+  useEffect(() => {
+    const onToast = (event) => pushToast(event.detail?.message || 'কিছু একটা ভুল হয়েছে', event.detail?.tone || 'error');
+    window.addEventListener('cakehaus:toast', onToast);
+    return () => window.removeEventListener('cakehaus:toast', onToast);
   }, [pushToast]);
+
+  const addToCart = useCallback(
+    (product, { qty = 1, sizeIndex = 0, unitPrice, note = '' } = {}) => {
+      const sizeLabel = product.sizes ? ['১ পাউন্ড', '২ পাউন্ড', '৩ পাউন্ড'][sizeIndex] : null;
+      const key = `${product.id}::${sizeIndex}::${note}`;
+      const price = unitPrice ?? product.price;
+      setCart((list) => {
+        const found = list.find((item) => item.key === key);
+        if (found) {
+          return list.map((item) => (item.key === key ? { ...item, qty: item.qty + qty } : item));
+        }
+        return [
+          ...list,
+          {
+            key,
+            id: product.id,
+            slug: product.slug,
+            name: product.name,
+            bn: product.bn,
+            image: product.image,
+            sizeLabel,
+            sizeIndex: product.sizes ? sizeIndex : 0,
+            unitPrice: price,
+            basePrice: product.price,
+            note,
+            qty,
+          },
+        ];
+      });
+      pushToast(`${product.name} কার্টে যোগ হয়েছে`);
+    },
+    [pushToast],
+  );
 
   const updateQty = useCallback((key, delta) => {
     setCart((list) =>
@@ -98,37 +111,150 @@ export function ShopProvider({ children }) {
   const cartCount = useMemo(() => cart.reduce((sum, item) => sum + item.qty, 0), [cart]);
   const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.qty * item.unitPrice, 0), [cart]);
 
-  const placeOrder = useCallback((order) => {
-    setOrders((list) => [order, ...list]);
-    setCart([]);
-    return order;
+  const remember = useCallback((order) => {
+    setOrders((list) => [order, ...list.filter((o) => o.id !== order.id)].slice(0, 50));
   }, []);
 
-  const updateOrderStatus = useCallback((id, status) => {
-    setOrders((list) => list.map((o) => (o.id === id ? { ...o, status } : o)));
+  const submitOrder = useCallback(
+    async ({ customer, items, promo }) => {
+      const data = await api('/orders', {
+        method: 'POST',
+        body: { customer, items, promo },
+      });
+      const order = data.order;
+      remember(order);
+      setLookupPhone(order.customer.phone);
+      setCart([]);
+      return order;
+    },
+    [remember],
+  );
+
+  const fetchOrders = useCallback(async (phone) => {
+    const normalized = String(phone || '').replace(/[\s-]/g, '');
+    setOrdersBusy(true);
+    setOrdersError('');
+    try {
+      const data = await api(`/orders?phone=${encodeURIComponent(normalized)}`);
+      setOrders(data.orders);
+      setLookupPhone(normalized);
+      return data.orders;
+    } catch (err) {
+      setOrdersError(err.message);
+      throw err;
+    } finally {
+      setOrdersBusy(false);
+    }
   }, []);
 
-  const deleteOrder = useCallback((id) => {
-    setOrders((list) => list.filter((o) => o.id !== id));
+  const fetchOrder = useCallback(
+    async (code) => {
+      const cached = orders.find((o) => o.id === code);
+      if (cached) return cached;
+      const phone = String(lookupPhone || '').replace(/[\s-]/g, '');
+      if (!phone) return null;
+      try {
+        const data = await api(`/orders/${encodeURIComponent(code)}?phone=${encodeURIComponent(phone)}`);
+        remember(data.order);
+        return data.order;
+      } catch {
+        return null;
+      }
+    },
+    [orders, lookupPhone, remember],
+  );
+
+  const loadAdminOrders = useCallback(async () => {
+    try {
+      const data = await api('/admin/orders');
+      setAdminOrders(data.orders);
+    } catch (err) {
+      notify(err.message);
+    }
   }, []);
 
-  const value = {
-    cart,
-    cartCount,
-    cartTotal,
-    cartOpen,
-    setCartOpen,
-    addToCart,
-    updateQty,
-    removeItem,
-    clearCart,
-    toasts,
-    pushToast,
-    orders,
-    placeOrder,
-    updateOrderStatus,
-    deleteOrder,
-  };
+  const updateOrderStatus = useCallback(
+    async (id, status) => {
+      const previous = adminOrders;
+      setAdminOrders((list) => list.map((o) => (o.id === id ? { ...o, status } : o)));
+      try {
+        const data = await api(`/admin/orders/${encodeURIComponent(id)}`, { method: 'PATCH', body: { status } });
+        setAdminOrders((list) => list.map((o) => (o.id === id ? data.order : o)));
+        return true;
+      } catch (err) {
+        setAdminOrders(previous);
+        notify(err.message);
+        return false;
+      }
+    },
+    [adminOrders],
+  );
+
+  const deleteOrder = useCallback(
+    async (id) => {
+      const previous = adminOrders;
+      setAdminOrders((list) => list.filter((o) => o.id !== id));
+      try {
+        await api(`/admin/orders/${encodeURIComponent(id)}`, { method: 'DELETE' });
+        return true;
+      } catch (err) {
+        setAdminOrders(previous);
+        notify(err.message);
+        return false;
+      }
+    },
+    [adminOrders],
+  );
+
+  const value = useMemo(
+    () => ({
+      cart,
+      cartCount,
+      cartTotal,
+      cartOpen,
+      setCartOpen,
+      addToCart,
+      updateQty,
+      removeItem,
+      clearCart,
+      toasts,
+      pushToast,
+      orders,
+      adminOrders,
+      submitOrder,
+      fetchOrders,
+      fetchOrder,
+      lookupPhone,
+      ordersBusy,
+      ordersError,
+      loadAdminOrders,
+      updateOrderStatus,
+      deleteOrder,
+    }),
+    [
+      cart,
+      cartCount,
+      cartTotal,
+      cartOpen,
+      addToCart,
+      updateQty,
+      removeItem,
+      clearCart,
+      toasts,
+      pushToast,
+      orders,
+      adminOrders,
+      submitOrder,
+      fetchOrders,
+      fetchOrder,
+      lookupPhone,
+      ordersBusy,
+      ordersError,
+      loadAdminOrders,
+      updateOrderStatus,
+      deleteOrder,
+    ],
+  );
 
   return <ShopContext.Provider value={value}>{children}</ShopContext.Provider>;
 }

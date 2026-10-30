@@ -1,73 +1,57 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { api, notify, peekBootstrap } from '../api/client';
 import { DEFAULT_BANNERS } from '../data/banners';
 
 const BannerContext = createContext(null);
 
-const BANNER_KEY = 'cakehaus_banners_v1';
-
 const seed = () => DEFAULT_BANNERS.map((b) => ({ ...b }));
 
-function loadBanners() {
-  try {
-    const raw = localStorage.getItem(BANNER_KEY);
-    if (!raw) return seed();
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : seed();
-  } catch {
-    return seed();
-  }
-}
-
 export function BannerProvider({ children }) {
-  const [banners, setBanners] = useState(loadBanners);
+  const [banners, setBanners] = useState(() => peekBootstrap()?.banners ?? seed());
 
-  useEffect(() => {
-    localStorage.setItem(BANNER_KEY, JSON.stringify(banners));
-  }, [banners]);
-
-  useEffect(() => {
-    const sync = (event) => {
-      if (event.key !== BANNER_KEY || !event.newValue) return;
+  const persist = useCallback(async (next) => {
+    setBanners(next);
+    try {
+      const data = await api('/admin/banners', { method: 'PUT', body: { banners: next } });
+      setBanners(data.banners);
+    } catch (err) {
+      notify(err.message);
       try {
-        const parsed = JSON.parse(event.newValue);
-        if (!Array.isArray(parsed)) return;
-        setBanners((prev) => (JSON.stringify(prev) === event.newValue ? prev : parsed));
+        const fresh = await api('/bootstrap');
+        setBanners(fresh.banners);
       } catch {
-        /* ignore malformed payload from another tab */
+        /* keep last known banners */
       }
-    };
-    window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
+    }
   }, []);
 
-  const addBanner = useCallback((banner) => {
-    setBanners((list) => [...list, banner]);
-  }, []);
+  const addBanner = useCallback((banner) => persist([...banners, banner]), [banners, persist]);
 
-  const updateBanner = useCallback((id, patch) => {
-    setBanners((list) => list.map((b) => (b.id === id ? { ...b, ...patch } : b)));
-  }, []);
+  const updateBanner = useCallback(
+    (id, patch) => persist(banners.map((b) => (b.id === id ? { ...b, ...patch } : b))),
+    [banners, persist],
+  );
 
-  const deleteBanner = useCallback((id) => {
-    setBanners((list) => list.filter((b) => b.id !== id));
-  }, []);
+  const deleteBanner = useCallback((id) => persist(banners.filter((b) => b.id !== id)), [banners, persist]);
 
-  const toggleBanner = useCallback((id) => {
-    setBanners((list) => list.map((b) => (b.id === id ? { ...b, active: !b.active } : b)));
-  }, []);
+  const toggleBanner = useCallback(
+    (id) => persist(banners.map((b) => (b.id === id ? { ...b, active: !b.active } : b))),
+    [banners, persist],
+  );
 
-  const moveBanner = useCallback((id, dir) => {
-    setBanners((list) => {
-      const from = list.findIndex((b) => b.id === id);
+  const moveBanner = useCallback(
+    (id, dir) => {
+      const from = banners.findIndex((b) => b.id === id);
       const to = from + dir;
-      if (from < 0 || to < 0 || to >= list.length) return list;
-      const next = [...list];
+      if (from < 0 || to < 0 || to >= banners.length) return;
+      const next = [...banners];
       [next[from], next[to]] = [next[to], next[from]];
-      return next;
-    });
-  }, []);
+      persist(next);
+    },
+    [banners, persist],
+  );
 
-  const resetBanners = useCallback(() => setBanners(seed()), []);
+  const resetBanners = useCallback(() => persist(seed()), [persist]);
 
   const value = useMemo(
     () => ({

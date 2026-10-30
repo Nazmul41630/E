@@ -1,49 +1,9 @@
 import { useRef, useState } from 'react';
 import { IconUpload } from '../../components/Icons';
-import { useSettings } from '../../context/SettingsContext';
+import { uploadImage } from '../../api/client';
 
 const MAX_MB = 8;
 const ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,image/avif';
-const IMGBB_URL = 'https://api.imgbb.com/1/upload';
-
-async function sendLocal(file) {
-  const res = await fetch('/api/upload', {
-    method: 'POST',
-    headers: { 'content-type': file.type || 'application/octet-stream' },
-    body: file,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.url) throw new Error(data.error || 'আপলোড ব্যর্থ হয়েছে');
-  return data.url;
-}
-
-function toBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || '');
-      resolve(result.slice(result.indexOf(',') + 1));
-    };
-    reader.onerror = () => reject(new Error('ছবিটি পড়া যায়নি'));
-    reader.readAsDataURL(file);
-  });
-}
-
-async function sendImgbb(file, key) {
-  const body = new FormData();
-  body.append('image', await toBase64(file));
-  body.append('name', file.name.replace(/\.[^.]+$/, '').slice(0, 48) || 'cakehaus');
-  const res = await fetch(`${IMGBB_URL}?key=${encodeURIComponent(key)}`, { method: 'POST', body });
-  const json = await res.json().catch(() => null);
-  if (!res.ok || !json?.success || !json.data) {
-    throw new Error(
-      json?.error?.code === 100
-        ? 'ImgBB API key ভুল — সেটিংসে সঠিক key দিন'
-        : json?.error?.message || 'ImgBB-তে আপলোড ব্যর্থ হয়েছে',
-    );
-  }
-  return json.data.display_url || json.data.url;
-}
 
 export default function ImageField({
   label = 'ছবি',
@@ -55,8 +15,6 @@ export default function ImageField({
   placeholder = '/images/...',
 }) {
   const inputRef = useRef(null);
-  const { imgbbKey } = useSettings();
-  const key = (imgbbKey || '').trim();
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
   const [note, setNote] = useState('');
@@ -76,7 +34,7 @@ export default function ImageField({
     setNote('');
     setBusy(true);
     try {
-      const url = key ? await sendImgbb(file, key) : await sendLocal(file);
+      const url = await uploadImage(file);
       onChange(url);
       setUploaded(url);
     } catch (err) {
@@ -110,7 +68,7 @@ export default function ImageField({
           <IconUpload />
           <strong>{busy ? 'আপলোড হচ্ছে…' : 'ছবি আপলোড করুন'}</strong>
           <small>
-            টেনে ছেড়ে দিন বা ক্লিক করুন · JPG / PNG / WebP · সর্বোচ্চ ৮MB · {key ? 'ImgBB-তে সেভ হবে' : 'সার্ভারে সেভ হবে'}
+            টেনে ছেড়ে দিন বা ক্লিক করুন · JPG / PNG / WebP · সর্বোচ্চ ৮MB · ImgBB-তে সেভ হবে
           </small>
         </button>
         <input

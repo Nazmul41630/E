@@ -1,107 +1,71 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  SOCIAL_CHANNELS,
-  WHATSAPP,
-  channelHref,
-  phoneLabel,
-  phoneTel,
-} from '../data/social';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { api, notify, peekBootstrap } from '../api/client';
+import { SOCIAL_CHANNELS, WHATSAPP, channelHref, phoneLabel, phoneTel } from '../data/social';
 
 const SocialContext = createContext(null);
 
-const SOCIAL_KEY = 'cakehaus_social_v1';
-
-const seed = () =>
+const defaults = () =>
   Object.fromEntries(
-    SOCIAL_CHANNELS.map((channel) => [
-      channel.key,
-      { value: channel.defaultValue, enabled: channel.defaultOn },
-    ]),
+    SOCIAL_CHANNELS.map((channel) => [channel.key, { value: channel.defaultValue, enabled: channel.defaultOn }]),
   );
 
-function loadSocial() {
-  const base = seed();
-  try {
-    const raw = localStorage.getItem(SOCIAL_KEY);
-    if (!raw) return base;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return base;
-    for (const channel of SOCIAL_CHANNELS) {
-      const row = parsed[channel.key];
-      if (row && typeof row === 'object') {
-        base[channel.key] = {
-          value: String(row.value ?? base[channel.key].value),
-          enabled: Boolean(row.enabled),
-        };
-      }
+const seed = () => {
+  const base = defaults();
+  const saved = peekBootstrap()?.social || {};
+  for (const channel of SOCIAL_CHANNELS) {
+    const row = saved[channel.key];
+    if (row && typeof row === 'object') {
+      base[channel.key] = { value: String(row.value ?? base[channel.key].value), enabled: Boolean(row.enabled) };
     }
-    return base;
-  } catch {
-    return base;
   }
-}
+  return base;
+};
 
 export function SocialProvider({ children }) {
-  const [social, setSocial] = useState(loadSocial);
+  const [social, setSocial] = useState(seed);
 
-  useEffect(() => {
-    localStorage.setItem(SOCIAL_KEY, JSON.stringify(social));
-  }, [social]);
-
-  useEffect(() => {
-    const sync = (event) => {
-      if (event.key !== SOCIAL_KEY || !event.newValue) return;
-      try {
-        const parsed = JSON.parse(event.newValue);
-        if (!parsed || typeof parsed !== 'object') return;
-        setSocial((prev) => {
-          if (JSON.stringify(prev) === event.newValue) return prev;
-          const next = { ...prev };
-          for (const channel of SOCIAL_CHANNELS) {
-            const row = parsed[channel.key];
-            if (row && typeof row === 'object') {
-              next[channel.key] = {
-                value: String(row.value ?? prev[channel.key].value),
-                enabled: Boolean(row.enabled),
-              };
-            }
-          }
-          return next;
-        });
-      } catch {
-        /* ignore malformed payload from another tab */
-      }
-    };
-    window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
+  const saveChannels = useCallback(async (next) => {
+    setSocial(next);
+    try {
+      const data = await api('/admin/social', { method: 'PUT', body: { social: next } });
+      setSocial(data.social);
+      return true;
+    } catch (err) {
+      notify(err.message);
+      return false;
+    }
   }, []);
 
-  const setChannel = useCallback((key, patch) => {
-    setSocial((prev) => ({ ...prev, [key]: { ...prev[key], ...patch } }));
-  }, []);
+  const setChannel = useCallback(
+    (key, patch) => {
+      const next = { ...social, [key]: { ...social[key], ...patch } };
+      return saveChannels(next);
+    },
+    [social, saveChannels],
+  );
 
-  const resetSocial = useCallback(() => setSocial(seed()), []);
+  const resetSocial = useCallback(() => saveChannels(defaults()), [saveChannels]);
 
   const value = useMemo(() => {
     const channels = SOCIAL_CHANNELS.map((channel) => {
-      const row = social[channel.key];
+      const row = social[channel.key] || defaults()[channel.key];
       return { ...channel, ...row, href: row.enabled ? channelHref(channel, row.value) : '' };
     });
-    const waHref =
-      channelHref(WHATSAPP, social[WHATSAPP.key].value) || channelHref(WHATSAPP, WHATSAPP.defaultValue);
+    const waRow = social[WHATSAPP.key] || defaults()[WHATSAPP.key];
+    const waHref = channelHref(WHATSAPP, waRow.value) || channelHref(WHATSAPP, WHATSAPP.defaultValue);
 
     return {
       social,
       channels,
       activeChannels: channels.filter((channel) => channel.enabled && channel.href),
-      whatsappHref: (text) =>
-        waHref ? (text ? `${waHref}?text=${encodeURIComponent(text)}` : waHref) : '',
-      whatsappLabel: phoneLabel(social[WHATSAPP.key].value),
-      whatsappTel: phoneTel(social[WHATSAPP.key].value),
+      whatsappHref: (text) => (waHref ? (text ? `${waHref}?text=${encodeURIComponent(text)}` : waHref) : ''),
+      whatsappLabel: phoneLabel(waRow.value),
+      whatsappTel: phoneTel(waRow.value),
       setChannel,
+      saveChannels,
       resetSocial,
     };
-  }, [social, setChannel, resetSocial]);
+  }, [social, setChannel, saveChannels, resetSocial]);
 
   return <SocialContext.Provider value={value}>{children}</SocialContext.Provider>;
 }

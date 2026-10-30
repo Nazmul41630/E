@@ -24,3 +24,6 @@ public/uploads
 *.njsproj
 *.sln
 *.sw?
+
+# wrangler local state
+.wrangler/

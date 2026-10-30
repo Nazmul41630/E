@@ -6,7 +6,7 @@ import { IconCheck, IconClose, IconShare } from '../../components/Icons';
 import SocialGlyph from '../../components/SocialGlyph';
 
 export default function AdminSocial() {
-  const { social, activeChannels, setChannel, resetSocial } = useSocial();
+  const { social, activeChannels, saveChannels, resetSocial } = useSocial();
   const { pushToast } = useShop();
   const [form, setForm] = useState(() =>
     Object.fromEntries(SOCIAL_CHANNELS.map((channel) => [channel.key, { ...social[channel.key] }])),
@@ -32,7 +32,7 @@ export default function AdminSocial() {
     setErrors((prev) => ({ ...prev, [key]: '' }));
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     const next = {};
     for (const channel of SOCIAL_CHANNELS) {
@@ -45,17 +45,21 @@ export default function AdminSocial() {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    for (const channel of SOCIAL_CHANNELS) {
-      setChannel(channel.key, {
-        value: String(form[channel.key].value || '').trim(),
-        enabled: Boolean(form[channel.key].enabled),
-      });
-    }
-    pushToast('সোশ্যাল লিংক আপডেট হয়েছে');
+    const channelsNext = Object.fromEntries(
+      SOCIAL_CHANNELS.map((channel) => [
+        channel.key,
+        {
+          value: String(form[channel.key].value || '').trim(),
+          enabled: Boolean(form[channel.key].enabled),
+        },
+      ]),
+    );
+    const ok = await saveChannels(channelsNext);
+    if (ok) pushToast('সোশ্যাল লিংক আপডেট হয়েছে');
   };
 
-  const restoreDefaults = () => {
-    resetSocial();
+  const restoreDefaults = async () => {
+    await resetSocial();
     setForm(
       Object.fromEntries(
         SOCIAL_CHANNELS.map((channel) => [

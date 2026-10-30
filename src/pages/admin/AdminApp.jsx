@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, Navigate, NavLink, Route, Routes, useLocation } from 'react-router-dom';
 import { useBanners } from '../../context/BannerContext';
 import { useCatalog } from '../../context/CatalogContext';
+import { useAuth } from '../../context/AuthContext';
 import { useShop } from '../../context/ShopContext';
 import { useSocial } from '../../context/SocialContext';
 import {
@@ -23,7 +24,6 @@ import AdminOrders from './AdminOrders';
 import AdminProducts from './AdminProducts';
 import AdminSettings from './AdminSettings';
 import AdminSocial from './AdminSocial';
-import { isAdminAuthed, setAdminAuthed } from './adminAuth';
 import './admin.css';
 
 const PAGES = [
@@ -37,30 +37,28 @@ const PAGES = [
 ];
 
 export default function AdminApp() {
-  const [authed, setAuthed] = useState(isAdminAuthed);
   const [navOpen, setNavOpen] = useState(false);
-  const { orders } = useShop();
+  const { admin, logout } = useAuth();
+  const { adminOrders, loadAdminOrders } = useShop();
   const { products, categories } = useCatalog();
   const { banners } = useBanners();
   const { activeChannels } = useSocial();
   const location = useLocation();
 
-  if (!authed) {
-    return (
-      <AdminLogin
-        onSuccess={() => {
-          setAdminAuthed(true);
-          setAuthed(true);
-        }}
-      />
-    );
+  useEffect(() => {
+    if (admin) loadAdminOrders();
+  }, [admin, loadAdminOrders]);
+
+  if (!admin) {
+    return <AdminLogin />;
   }
 
   const page = PAGES.find((p) => (p.path === '/admin' ? location.pathname === p.path : location.pathname.startsWith(p.path))) || PAGES[0];
+  const initial = (admin.username || 'A').slice(0, 1).toUpperCase();
 
-  const logout = () => {
-    setAdminAuthed(false);
-    setAuthed(false);
+  const signOut = () => {
+    setNavOpen(false);
+    logout().catch(() => {});
   };
 
   return (
@@ -89,7 +87,7 @@ export default function AdminApp() {
           <NavLink to="/admin/orders" className={({ isActive }) => (isActive ? 'on' : '')} onClick={() => setNavOpen(false)}>
             <IconCart />
             <span>অর্ডার</span>
-            <b className="adm-side-count">{orders.length}</b>
+            <b className="adm-side-count">{adminOrders.length}</b>
           </NavLink>
           <NavLink to="/admin/products" className={({ isActive }) => (isActive ? 'on' : '')} onClick={() => setNavOpen(false)}>
             <IconBox />
@@ -126,12 +124,12 @@ export default function AdminApp() {
         </div>
 
         <div className="adm-side-foot">
-          <span className="adm-avatar">A</span>
+          <span className="adm-avatar">{initial}</span>
           <div>
-            <b>Admin</b>
+            <b>{admin.username}</b>
             <small>Store Manager</small>
           </div>
-          <button type="button" onClick={logout} aria-label="লগআউট" title="লগআউট">
+          <button type="button" onClick={signOut} aria-label="লগআউট" title="লগআউট">
             <IconLogout />
           </button>
         </div>
@@ -161,7 +159,7 @@ export default function AdminApp() {
             <a href="/" className="adm-btn ghost sm" target="_blank" rel="noreferrer">
               সাইট দেখুন
             </a>
-            <span className="adm-avatar">A</span>
+            <span className="adm-avatar">{initial}</span>
           </div>
         </header>
 

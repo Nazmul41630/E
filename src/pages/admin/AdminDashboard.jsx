@@ -25,7 +25,7 @@ const WEEK = Array.from({ length: 7 }, (_, i) => {
 });
 
 export default function AdminDashboard() {
-  const { orders, pushToast } = useShop();
+  const { adminOrders: orders, pushToast } = useShop();
   const { products, toggleStock } = useCatalog();
 
   const active = orders.filter((o) => !isCancelled(o.status));

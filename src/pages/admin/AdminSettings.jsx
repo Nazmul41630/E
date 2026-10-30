@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { useShop } from '../../context/ShopContext';
 import { formatTaka } from '../../data/products';
-import { IconCheck, IconCart, IconImage, IconSettings, IconTag } from '../../components/Icons';
+import { IconCheck, IconCart, IconImage, IconSettings, IconShield, IconTag } from '../../components/Icons';
 
 const DEFAULT_LABEL = 'এখনই কিনুন';
 const PROMO_FIELDS = ['kicker', 'title', 'desc', 'code', 'ctaLabel', 'ctaTo'];
 
 export default function AdminSettings() {
-  const { buyNow, promo, imgbbKey, setBuyNow, setPromo, setImgbbKey, resetSettings } = useSettings();
+  const { buyNow, promo, imgbbKeySet, setBuyNow, setPromo, setImgbbKey, resetSettings } = useSettings();
+  const { changePassword } = useAuth();
   const { pushToast } = useShop();
   const [draft, setDraft] = useState({ saved: buyNow.message, text: buyNow.message });
   if (draft.saved !== buyNow.message) setDraft({ saved: buyNow.message, text: buyNow.message });
@@ -16,8 +18,9 @@ export default function AdminSettings() {
   const [promoDraft, setPromoDraft] = useState({ saved: promo, text: promo });
   if (promoDraft.saved !== promo) setPromoDraft({ saved: promo, text: promo });
 
-  const [keyDraft, setKeyDraft] = useState({ saved: imgbbKey, text: imgbbKey });
-  if (keyDraft.saved !== imgbbKey) setKeyDraft({ saved: imgbbKey, text: imgbbKey });
+  const [keyText, setKeyText] = useState('');
+  const [passForm, setPassForm] = useState({ current: '', next: '', confirm: '' });
+  const [passBusy, setPassBusy] = useState(false);
 
   const message = draft.text;
   const setMessage = (text) => setDraft((prev) => ({ ...prev, text }));
@@ -31,33 +34,32 @@ export default function AdminSettings() {
     setPromoDraft((prev) => ({ ...prev, text: { ...prev.text, [key]: e.target.value } }));
   const promoDirty = PROMO_FIELDS.some((key) => p[key] !== promo[key]);
 
-  const keyText = keyDraft.text;
-  const keyDirty = keyText.trim() !== imgbbKey;
+  const keyDirty = keyText.trim().length > 0;
 
-  const toggle = () => {
-    setBuyNow({ enabled: !buyNow.enabled });
-    pushToast(buyNow.enabled ? '“এখনই কিনুন” বাটন বন্ধ' : '“এখনই কিনুন” বাটন চালু');
+  const toggle = async () => {
+    const ok = await setBuyNow({ enabled: !buyNow.enabled });
+    if (ok) pushToast(buyNow.enabled ? '“এখনই কিনুন” বাটন বন্ধ' : '“এখনই কিনুন” বাটন চালু');
   };
 
-  const togglePromo = () => {
-    setPromo({ enabled: !promo.enabled });
-    pushToast(promo.enabled ? 'প্রোমো ব্যানার লুকানো হয়েছে' : 'প্রোমো ব্যানার চালু হয়েছে');
+  const togglePromo = async () => {
+    const ok = await setPromo({ enabled: !promo.enabled });
+    if (ok) pushToast(promo.enabled ? 'প্রোমো ব্যানার লুকানো হয়েছে' : 'প্রোমো ব্যানার চালু হয়েছে');
   };
 
-  const save = (e) => {
+  const save = async (e) => {
     e.preventDefault();
-    setBuyNow({ message: message.trim() });
-    pushToast(message.trim() ? 'কাস্টম মেসেজ সেভ হয়েছে' : 'ডিফল্ট লেখায় ফিরেছে');
+    const ok = await setBuyNow({ message: message.trim() });
+    if (ok) pushToast(message.trim() ? 'কাস্টম মেসেজ সেভ হয়েছে' : 'ডিফল্ট লেখায় ফিরেছে');
   };
 
-  const savePromo = (e) => {
+  const savePromo = async (e) => {
     e.preventDefault();
     const to = p.ctaTo.trim();
     if (to && !to.startsWith('/')) {
       pushToast('লিংক “/” দিয়ে শুরু করুন', 'error');
       return;
     }
-    setPromo({
+    const ok = await setPromo({
       kicker: p.kicker.trim(),
       title: p.title.trim(),
       desc: p.desc.trim(),
@@ -65,18 +67,48 @@ export default function AdminSettings() {
       ctaLabel: p.ctaLabel.trim(),
       ctaTo: to,
     });
-    pushToast('প্রোমো ব্যানার সেভ হয়েছে');
+    if (ok) pushToast('প্রোমো ব্যানার সেভ হয়েছে');
   };
 
-  const reset = () => {
-    resetSettings();
-    pushToast('সেটিংস ডিফল্টে ফিরেছে');
+  const reset = async () => {
+    const ok = await resetSettings();
+    if (ok) pushToast('সেটিংস ডিফল্টে ফিরেছে');
   };
 
-  const saveKey = (e) => {
+  const saveKey = async (e) => {
     e.preventDefault();
-    setImgbbKey(keyDraft.text.trim());
-    pushToast(keyDraft.text.trim() ? 'ImgBB key সেভ হয়েছে' : 'ImgBB key সরানো হয়েছে — লোকাল আপলোড চলবে');
+    const ok = await setImgbbKey(keyText.trim());
+    if (ok) {
+      setKeyText('');
+      pushToast('ImgBB key সেভ হয়েছে');
+    }
+  };
+
+  const clearKey = async () => {
+    const ok = await setImgbbKey('');
+    if (ok) pushToast('ImgBB key সরানো হয়েছে');
+  };
+
+  const changePass = async (e) => {
+    e.preventDefault();
+    if (passForm.next.length < 8) {
+      pushToast('নতুন পাসওয়ার্ড কমপক্ষে ৮ অক্ষর দিন', 'error');
+      return;
+    }
+    if (passForm.next !== passForm.confirm) {
+      pushToast('নতুন পাসওয়ার্ড দুইবার একই লিখুন', 'error');
+      return;
+    }
+    setPassBusy(true);
+    try {
+      await changePassword(passForm.current, passForm.next);
+      setPassForm({ current: '', next: '', confirm: '' });
+      pushToast('পাসওয়ার্ড বদলানো হয়েছে');
+    } catch (err) {
+      pushToast(err.message, 'error');
+    } finally {
+      setPassBusy(false);
+    }
   };
 
   return (
@@ -315,9 +347,9 @@ export default function AdminSettings() {
           <div>
             <b>ImgBB API key</b>
             <small>
-              {imgbbKey
-                ? 'সেট আছে — আপলোড ImgBB-তে যাবে'
-                : 'সেট নেই — এখন ছবি লোকাল public/uploads ফোল্ডারে জমা হয়'}
+              {imgbbKeySet
+                ? 'সেট আছে — ছবি আপলোড সরাসরি ImgBB-তে যাবে'
+                : 'সেট নেই — ছবি আপলোড করতে আগে key সেভ করুন'}
             </small>
           </div>
           <a className="adm-btn ghost sm" href="https://api.imgbb.com/" target="_blank" rel="noreferrer">
@@ -326,25 +358,83 @@ export default function AdminSettings() {
         </div>
 
         <label className="adm-field">
-          <span>API key</span>
+          <span>নতুন API key</span>
           <input
             className="adm-input adm-key-input"
             value={keyText}
-            onChange={(e) => setKeyDraft((prev) => ({ ...prev, text: e.target.value }))}
-            placeholder="ImgBB API key পেস্ট করুন"
+            onChange={(e) => setKeyText(e.target.value)}
+            placeholder={imgbbKeySet ? 'নতুন key দিলে পুরোনোটা বদলে যাবে' : 'ImgBB API key পেস্ট করুন'}
             autoComplete="off"
             spellCheck={false}
             aria-label="ImgBB API key"
           />
           <small className="adm-hint">
-            api.imgbb.com-এ লগইন করে “Get API key” থেকে নিন। key শুধু এই ব্রাউজারের localStorage-এ থাকে — কোড বা
-            গিটহাবে যায় না।
+            key সার্ভারে এনক্রিপ্টেড স্টোরেজে থাকে — ব্রাউজারে বা গিটহাবে যায় না। সেভ করা key আবার দেখানো হয় না।
           </small>
         </label>
 
         <div className="adm-set-foot">
           <button type="submit" className="adm-btn primary sm" disabled={!keyDirty}>
             <IconCheck /> সেভ করুন
+          </button>
+          {imgbbKeySet && (
+            <button type="button" className="adm-btn ghost sm" onClick={clearKey}>
+              key মুছুন
+            </button>
+          )}
+        </div>
+      </form>
+
+      <form className="adm-card adm-set-card" onSubmit={changePass}>
+        <div className="adm-set-head">
+          <span className="adm-set-ic">
+            <IconShield />
+          </span>
+          <div>
+            <h3>অ্যাডমিন পাসওয়ার্ড</h3>
+            <p>পাসওয়ার্ড বদলালে অন্য সব ডিভাইসের লগইন সেশন বন্ধ হয়ে যাবে।</p>
+          </div>
+        </div>
+
+        <label className="adm-field">
+          <span>বর্তমান পাসওয়ার্ড</span>
+          <input
+            className="adm-input"
+            type="password"
+            value={passForm.current}
+            onChange={(e) => setPassForm((prev) => ({ ...prev, current: e.target.value }))}
+            autoComplete="current-password"
+          />
+        </label>
+        <label className="adm-field">
+          <span>নতুন পাসওয়ার্ড</span>
+          <input
+            className="adm-input"
+            type="password"
+            value={passForm.next}
+            onChange={(e) => setPassForm((prev) => ({ ...prev, next: e.target.value }))}
+            autoComplete="new-password"
+            placeholder="কমপক্ষে ৮ অক্ষর"
+          />
+        </label>
+        <label className="adm-field">
+          <span>নতুন পাসওয়ার্ড আবার</span>
+          <input
+            className="adm-input"
+            type="password"
+            value={passForm.confirm}
+            onChange={(e) => setPassForm((prev) => ({ ...prev, confirm: e.target.value }))}
+            autoComplete="new-password"
+          />
+        </label>
+
+        <div className="adm-set-foot">
+          <button
+            type="submit"
+            className="adm-btn primary sm"
+            disabled={passBusy || !passForm.current || !passForm.next}
+          >
+            <IconCheck /> {passBusy ? 'বদলানো হচ্ছে…' : 'পাসওয়ার্ড বদলান'}
           </button>
         </div>
       </form>

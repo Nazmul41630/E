@@ -7,10 +7,10 @@ import { IconCash, IconCheck, IconLeaf, IconShield, IconTruck } from '../compone
 import { dprSet, thumb } from '../utils/image';
 
 const slots = ['সকাল ১০টা – দুপুর ২টা', 'দুপুর ২টা – সন্ধ্যা ৬টা', 'সন্ধ্যা ৬টা – রাত ১০টা'];
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dhaka' }).format(new Date());
 
 export default function Checkout() {
-  const { cart, cartTotal, placeOrder, pushToast } = useShop();
+  const { cart, cartTotal, submitOrder, pushToast } = useShop();
   const { promo: promoBand } = useSettings();
   const promoCode = promoBand.code.trim().toUpperCase();
   const navigate = useNavigate();
@@ -30,8 +30,8 @@ export default function Checkout() {
   const [placing, setPlacing] = useState(false);
 
   const discount = useMemo(
-    () => (promoCode && promo === promoCode ? Math.round(cartTotal * 0.1) : 0),
-    [promo, promoCode, cartTotal],
+    () => (promoBand.enabled && promoCode && promo === promoCode ? Math.round(cartTotal * 0.1) : 0),
+    [promo, promoCode, promoBand.enabled, cartTotal],
   );
   const delivery = cartTotal >= freeDeliveryAbove || cartTotal === 0 ? 0 : deliveryFees[form.area];
   const total = Math.max(0, cartTotal - discount) + delivery;
@@ -61,30 +61,29 @@ export default function Checkout() {
     return Object.keys(next).length === 0;
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     if (!validate()) {
       pushToast('ফর্মে কিছু তথ্য বাকি আছে', 'error');
       return;
     }
     setPlacing(true);
-    const order = {
-      id: 'CH' + Date.now().toString().slice(-6),
-      placedAt: new Date().toISOString(),
-      items: cart,
-      subtotal: cartTotal,
-      discount,
-      promo,
-      delivery,
-      total,
-      customer: { ...form, name: form.name.trim(), phone: form.phone.trim(), address: form.address.trim() },
-      paymentLabel: form.payment === 'cash' ? 'ক্যাশ অন ডেলিভারি' : 'bKash (ম্যানুয়াল পেমেন্ট)',
-      status: 'প্রসেসিং',
-    };
-    setTimeout(() => {
-      placeOrder(order);
+    try {
+      const order = await submitOrder({
+        customer: { ...form, name: form.name.trim(), phone: form.phone.trim(), address: form.address.trim() },
+        items: cart.map((item) => ({
+          id: item.id,
+          sizeIndex: item.sizeIndex,
+          qty: item.qty,
+          note: item.note,
+        })),
+        promo,
+      });
       navigate(`/order/${order.id}`);
-    }, 550);
+    } catch (err) {
+      pushToast(err.message || 'অর্ডার সম্পন্ন হয়নি', 'error');
+      setPlacing(false);
+    }
   };
 
   if (cart.length === 0) {

@@ -1,21 +1,26 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ADMIN_DEMO } from './adminAuth';
+import { useAuth } from '../../context/AuthContext';
 
-export default function AdminLogin({ onSuccess }) {
+export default function AdminLogin() {
+  const { login } = useAuth();
   const [user, setUser] = useState('');
   const [pass, setPass] = useState('');
   const [show, setShow] = useState(false);
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
-    if (user.trim().toLowerCase() !== ADMIN_DEMO.user || pass !== ADMIN_DEMO.pass) {
-      setError('ইউজারনেম বা পাসওয়ার্ড ঠিক নেই।');
-      return;
-    }
+    if (busy) return;
+    setBusy(true);
     setError('');
-    onSuccess();
+    try {
+      await login(user, pass);
+    } catch (err) {
+      setError(err.message || 'লগইন ব্যর্থ হয়েছে');
+      setBusy(false);
+    }
   };
 
   return (
@@ -71,17 +76,9 @@ export default function AdminLogin({ onSuccess }) {
           </p>
         )}
 
-        <button type="submit" className="adm-btn primary block">
-          লগইন করুন
+        <button type="submit" className="adm-btn primary block" disabled={busy}>
+          {busy ? 'লগইন হচ্ছে…' : 'লগইন করুন'}
         </button>
-
-        <div className="adm-demo">
-          <span>ডেমো অ্যাক্সেস</span>
-          <p>
-            <b>admin</b> / <b>cakehaus123</b>
-          </p>
-          <small>লোকাল ডেমো লগইন — প্রোডাকশনে সার্ভার-সাইড অথেন্টিকেশন লাগবে।</small>
-        </div>
 
         <Link to="/" className="adm-login-back">
           ← স্টোরে ফিরে যান

@@ -1,82 +1,60 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { api, notify, peekBootstrap } from '../api/client';
+import { DEFAULT_SETTINGS } from '../data/settings';
 
 const SettingsContext = createContext(null);
 
-const SETTINGS_KEY = 'cakehaus_settings_v1';
-
-const DEFAULT_SETTINGS = {
-  buyNow: { enabled: true, message: '' },
-  imgbbKey: '',
-  promo: {
-    enabled: true,
-    kicker: 'আজকের অফার',
-    title: 'প্রতিটি জন্মদিনের কেকে ১০% ছাড়',
-    desc: 'চেকআউটে কোড ব্যবহার করুন — সীমিত সময়ের জন্য।',
-    code: 'HBD10',
-    ctaLabel: 'অফার দেখুন',
-    ctaTo: '/shop?cat=birthday',
-  },
+const initialSettings = () => {
+  const boot = peekBootstrap();
+  const saved = boot?.settings || {};
+  return {
+    buyNow: { ...DEFAULT_SETTINGS.buyNow, ...(saved.buyNow || {}) },
+    promo: { ...DEFAULT_SETTINGS.promo, ...(saved.promo || {}) },
+    imgbbKeySet: Boolean(saved.imgbbKeySet),
+  };
 };
 
-function loadSettings() {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
-    const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== 'object') return DEFAULT_SETTINGS;
-    return {
-      ...DEFAULT_SETTINGS,
-      ...parsed,
-      buyNow: { ...DEFAULT_SETTINGS.buyNow, ...(parsed.buyNow || {}) },
-      promo: { ...DEFAULT_SETTINGS.promo, ...(parsed.promo || {}) },
-    };
-  } catch {
-    return DEFAULT_SETTINGS;
-  }
-}
-
 export function SettingsProvider({ children }) {
-  const [settings, setSettings] = useState(loadSettings);
+  const [settings, setSettings] = useState(initialSettings);
 
-  useEffect(() => {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  }, [settings]);
-
-  useEffect(() => {
-    const sync = (event) => {
-      if (event.key !== SETTINGS_KEY || !event.newValue) return;
-      try {
-        const parsed = JSON.parse(event.newValue);
-        if (!parsed || typeof parsed !== 'object') return;
-        setSettings((prev) => (JSON.stringify(prev) === event.newValue ? prev : parsed));
-      } catch {
-        /* ignore malformed payload from another tab */
-      }
-    };
-    window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
+  const save = useCallback(async (patch) => {
+    try {
+      const data = await api('/admin/settings', { method: 'PUT', body: patch });
+      setSettings({
+        buyNow: data.settings.buyNow,
+        promo: data.settings.promo,
+        imgbbKeySet: Boolean(data.settings.imgbbKeySet),
+      });
+      return true;
+    } catch (err) {
+      notify(err.message);
+      return false;
+    }
   }, []);
 
-  const setBuyNow = useCallback((patch) => {
-    setSettings((prev) => ({ ...prev, buyNow: { ...prev.buyNow, ...patch } }));
-  }, []);
+  const setBuyNow = useCallback(
+    (patch) => save({ buyNow: { ...settings.buyNow, ...patch } }),
+    [save, settings.buyNow],
+  );
 
-  const setPromo = useCallback((patch) => {
-    setSettings((prev) => ({ ...prev, promo: { ...prev.promo, ...patch } }));
-  }, []);
+  const setPromo = useCallback(
+    (patch) => save({ promo: { ...settings.promo, ...patch } }),
+    [save, settings.promo],
+  );
 
-  const setImgbbKey = useCallback((key) => {
-    setSettings((prev) => ({ ...prev, imgbbKey: key }));
-  }, []);
+  const setImgbbKey = useCallback((key) => save({ imgbbKey: key }), [save]);
 
-  const resetSettings = useCallback(() => setSettings(DEFAULT_SETTINGS), []);
+  const resetSettings = useCallback(
+    () => save({ buyNow: DEFAULT_SETTINGS.buyNow, promo: DEFAULT_SETTINGS.promo }),
+    [save],
+  );
 
   const value = useMemo(
     () => ({
       settings,
       buyNow: settings.buyNow,
       promo: settings.promo,
-      imgbbKey: settings.imgbbKey,
+      imgbbKeySet: settings.imgbbKeySet,
       setBuyNow,
       setPromo,
       setImgbbKey,
