@@ -15,7 +15,7 @@ const randomPassword = Array.from(crypto.getRandomValues(new Uint8Array(16)))
 
 const password = passwordArg ? passwordArg.split('=').slice(1).join('=') : randomPassword;
 const salt = crypto.getRandomValues(new Uint8Array(16));
-const iterations = 150000;
+const iterations = 100000;
 
 const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
 const bits = await crypto.subtle.deriveBits(

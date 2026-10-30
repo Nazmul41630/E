@@ -75,7 +75,10 @@ export function randomCode(length = 6) {
     .join('');
 }
 
-export async function hashPassword(password, saltHex, iterations = 150000) {
+// Cloudflare's runtime rejects PBKDF2 iteration counts above 100000.
+export const PBKDF2_ITERATIONS = 100000;
+
+export async function hashPassword(password, saltHex, iterations = PBKDF2_ITERATIONS) {
   const salt = Uint8Array.from(saltHex.match(/.{2}/g).map((h) => parseInt(h, 16)));
   const key = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
   const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations }, key, 256);

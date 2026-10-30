@@ -1,6 +1,7 @@
 import {
   MAX_IMAGE_BYTES,
   ORDER_COLUMNS,
+  PBKDF2_ITERATIONS,
   SESSION_DAYS,
   STATUSES,
   bannerInsertStatement,
@@ -158,7 +159,7 @@ async function changePassword(context) {
   if (!safeEqual(candidate, row.password_hash)) throw httpError('বর্তমান পাসওয়ার্ড ঠিক নেই', 401);
 
   const salt = randomToken(16);
-  const iterations = 150000;
+  const iterations = PBKDF2_ITERATIONS;
   const hash = await hashPassword(next, salt, iterations);
   await env.DB.prepare('UPDATE admins SET password_hash = ?, salt = ?, iterations = ? WHERE id = ?')
     .bind(hash, salt, iterations, admin.id)
