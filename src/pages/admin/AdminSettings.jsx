@@ -2,19 +2,22 @@ import { useState } from 'react';
 import { useSettings } from '../../context/SettingsContext';
 import { useShop } from '../../context/ShopContext';
 import { formatTaka } from '../../data/products';
-import { IconCheck, IconCart, IconSettings, IconTag } from '../../components/Icons';
+import { IconCheck, IconCart, IconImage, IconSettings, IconTag } from '../../components/Icons';
 
 const DEFAULT_LABEL = 'এখনই কিনুন';
 const PROMO_FIELDS = ['kicker', 'title', 'desc', 'code', 'ctaLabel', 'ctaTo'];
 
 export default function AdminSettings() {
-  const { buyNow, promo, setBuyNow, setPromo, resetSettings } = useSettings();
+  const { buyNow, promo, imgbbKey, setBuyNow, setPromo, setImgbbKey, resetSettings } = useSettings();
   const { pushToast } = useShop();
   const [draft, setDraft] = useState({ saved: buyNow.message, text: buyNow.message });
   if (draft.saved !== buyNow.message) setDraft({ saved: buyNow.message, text: buyNow.message });
 
   const [promoDraft, setPromoDraft] = useState({ saved: promo, text: promo });
   if (promoDraft.saved !== promo) setPromoDraft({ saved: promo, text: promo });
+
+  const [keyDraft, setKeyDraft] = useState({ saved: imgbbKey, text: imgbbKey });
+  if (keyDraft.saved !== imgbbKey) setKeyDraft({ saved: imgbbKey, text: imgbbKey });
 
   const message = draft.text;
   const setMessage = (text) => setDraft((prev) => ({ ...prev, text }));
@@ -27,6 +30,9 @@ export default function AdminSettings() {
   const setPromoField = (key) => (e) =>
     setPromoDraft((prev) => ({ ...prev, text: { ...prev.text, [key]: e.target.value } }));
   const promoDirty = PROMO_FIELDS.some((key) => p[key] !== promo[key]);
+
+  const keyText = keyDraft.text;
+  const keyDirty = keyText.trim() !== imgbbKey;
 
   const toggle = () => {
     setBuyNow({ enabled: !buyNow.enabled });
@@ -65,6 +71,12 @@ export default function AdminSettings() {
   const reset = () => {
     resetSettings();
     pushToast('সেটিংস ডিফল্টে ফিরেছে');
+  };
+
+  const saveKey = (e) => {
+    e.preventDefault();
+    setImgbbKey(keyDraft.text.trim());
+    pushToast(keyDraft.text.trim() ? 'ImgBB key সেভ হয়েছে' : 'ImgBB key সরানো হয়েছে — লোকাল আপলোড চলবে');
   };
 
   return (
@@ -282,6 +294,58 @@ export default function AdminSettings() {
                 ? 'সেভ করলে সাইটে এই লেখা দেখাবে'
                 : 'সাইটে এখন এই ব্যানারটাই দেখাচ্ছে'}
           </small>
+        </div>
+      </form>
+
+      <form className="adm-card adm-set-card adm-set-host" onSubmit={saveKey}>
+        <div className="adm-set-head">
+          <span className="adm-set-ic">
+            <IconImage />
+          </span>
+          <div>
+            <h3>ইমেজ হোস্টিং (ImgBB)</h3>
+            <p>
+              অ্যাডমিন থেকে ছবি আপলোড করলে সরাসরি ImgBB-তে যাবে আর ফিরে আসবে i.ibb.co লিংক — তাই ছবি যেকোনো
+              হোস্টে বা ডিভাইসে দেখাবে।
+            </p>
+          </div>
+        </div>
+
+        <div className="adm-set-row">
+          <div>
+            <b>ImgBB API key</b>
+            <small>
+              {imgbbKey
+                ? 'সেট আছে — আপলোড ImgBB-তে যাবে'
+                : 'সেট নেই — এখন ছবি লোকাল public/uploads ফোল্ডারে জমা হয়'}
+            </small>
+          </div>
+          <a className="adm-btn ghost sm" href="https://api.imgbb.com/" target="_blank" rel="noreferrer">
+            key নিন
+          </a>
+        </div>
+
+        <label className="adm-field">
+          <span>API key</span>
+          <input
+            className="adm-input adm-key-input"
+            value={keyText}
+            onChange={(e) => setKeyDraft((prev) => ({ ...prev, text: e.target.value }))}
+            placeholder="ImgBB API key পেস্ট করুন"
+            autoComplete="off"
+            spellCheck={false}
+            aria-label="ImgBB API key"
+          />
+          <small className="adm-hint">
+            api.imgbb.com-এ লগইন করে “Get API key” থেকে নিন। key শুধু এই ব্রাউজারের localStorage-এ থাকে — কোড বা
+            গিটহাবে যায় না।
+          </small>
+        </label>
+
+        <div className="adm-set-foot">
+          <button type="submit" className="adm-btn primary sm" disabled={!keyDirty}>
+            <IconCheck /> সেভ করুন
+          </button>
         </div>
       </form>
     </div>

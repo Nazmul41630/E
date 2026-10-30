@@ -18,4 +18,4 @@ npm run preview
 
 ## ছবি আপলোড
 
-`ImageField` কম্পোনেন্ট `POST /api/upload`-এ ছবি পাঠায় (Vite plugin মিডলওয়্যার, magic-byte যাচাই, ৮MB সীমা) এবং `/uploads/<file>` লিংক ফেরত দেয়।
+`ImageField` কম্পোনেন্ট আগে ImgBB-তে ছবি পাঠায় (`/admin/settings`-এ API key থাকলে) এবং `https://i.ibb.co/...` লিংক ফেরত দেয় — তাই ছবি স্ট্যাটিক হোস্টেও দেখায়। key না থাকলে `POST /api/upload` (Vite plugin মিডলওয়্যার, magic-byte যাচাই, ৮MB সীমা, `public/uploads/`) ব্যবহার হয়। ImgBB key শুধু ব্রাউজারের localStorage-এ থাকে, কোডে বা গিটহাবে যায় না।

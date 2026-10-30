@@ -6,6 +6,7 @@ const SETTINGS_KEY = 'cakehaus_settings_v1';
 
 const DEFAULT_SETTINGS = {
   buyNow: { enabled: true, message: '' },
+  imgbbKey: '',
   promo: {
     enabled: true,
     kicker: 'আজকের অফার',
@@ -64,11 +65,24 @@ export function SettingsProvider({ children }) {
     setSettings((prev) => ({ ...prev, promo: { ...prev.promo, ...patch } }));
   }, []);
 
+  const setImgbbKey = useCallback((key) => {
+    setSettings((prev) => ({ ...prev, imgbbKey: key }));
+  }, []);
+
   const resetSettings = useCallback(() => setSettings(DEFAULT_SETTINGS), []);
 
   const value = useMemo(
-    () => ({ settings, buyNow: settings.buyNow, promo: settings.promo, setBuyNow, setPromo, resetSettings }),
-    [settings, setBuyNow, setPromo, resetSettings],
+    () => ({
+      settings,
+      buyNow: settings.buyNow,
+      promo: settings.promo,
+      imgbbKey: settings.imgbbKey,
+      setBuyNow,
+      setPromo,
+      setImgbbKey,
+      resetSettings,
+    }),
+    [settings, setBuyNow, setPromo, setImgbbKey, resetSettings],
   );
 
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;

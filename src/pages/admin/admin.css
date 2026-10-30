@@ -2841,6 +2841,15 @@
   margin-top: 14px;
 }
 
+.adm-set-host {
+  margin-top: 14px;
+}
+
+.adm-key-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.3px;
+}
+
 .adm-set-fields {
   display: grid;
   grid-template-columns: 1fr 1fr;
