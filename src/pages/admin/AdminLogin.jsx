@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { IconCake } from '../../components/Icons';
 import { ADMIN_DEMO } from './adminAuth';
 
 export default function AdminLogin({ onSuccess }) {
@@ -27,7 +26,7 @@ export default function AdminLogin({ onSuccess }) {
       <form className="adm-login-card" onSubmit={submit}>
         <Link to="/" className="adm-login-brand">
           <span className="adm-logo">
-            <IconCake />
+            <img src="/images/logo-96.webp" alt="" width="44" height="44" />
           </span>
           <span className="adm-login-brandtext">
             Cake<span>Haus</span>

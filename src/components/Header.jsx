@@ -136,7 +136,7 @@ export default function Header() {
         <div className="container header-main">
           <Link to="/" className="brand" aria-label="CakeHaus BD হোম" onClick={() => setMobileSearch(false)}>
             <span className="brand-mark">
-              <IconCake />
+              <img src="/images/logo-96.webp" alt="" width="46" height="46" />
             </span>
             <span className="brand-text">
               Cake<span>Haus</span>

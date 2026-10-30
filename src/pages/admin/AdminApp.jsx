@@ -7,7 +7,6 @@ import { useSocial } from '../../context/SocialContext';
 import {
   IconArrow,
   IconBox,
-  IconCake,
   IconCart,
   IconGrid,
   IconImage,
@@ -73,7 +72,7 @@ export default function AdminApp() {
       <aside className="adm-side">
         <Link to="/admin" className="adm-side-brand" onClick={() => setNavOpen(false)}>
           <span className="adm-logo">
-            <IconCake />
+            <img src="/images/logo-96.webp" alt="" width="44" height="44" />
           </span>
           <span className="adm-side-brandtext">
             Cake<span>Haus</span>

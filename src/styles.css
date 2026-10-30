@@ -304,19 +304,21 @@ ul {
 }
 
 .brand-mark {
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  color: #fff;
-  background: linear-gradient(145deg, #ffb14d, var(--orange) 55%, #e07f07);
-  box-shadow: 0 8px 18px rgba(247, 148, 29, 0.3);
+  overflow: hidden;
+  background: #fdf6e6;
+  box-shadow: 0 6px 16px rgba(91, 43, 18, 0.14), 0 0 0 1px rgba(91, 43, 18, 0.06);
 }
 
-.brand-mark svg {
-  width: 23px;
-  height: 23px;
+.brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 .brand-text {
@@ -330,7 +332,7 @@ ul {
 }
 
 .brand-text span {
-  color: var(--orange);
+  color: #ef8a0c;
 }
 
 .brand-text small {
@@ -3253,9 +3255,8 @@ ul {
   }
 
   .brand-mark {
-    width: 38px;
-    height: 38px;
-    border-radius: 11px;
+    width: 42px;
+    height: 42px;
   }
 
   .brand-text {

@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
 import { useSocial } from '../context/SocialContext';
-import { IconCake } from './Icons';
 import SocialGlyph from './SocialGlyph';
 
 const YEAR = new Date().getFullYear();
@@ -16,7 +15,7 @@ export default function Footer() {
         <div className="footer-brand">
           <Link to="/" className="brand">
             <span className="brand-mark">
-              <IconCake />
+              <img src="/images/logo-96.webp" alt="" width="46" height="46" />
             </span>
             <span className="brand-text">
               Cake<span>Haus</span>
