@@ -4,6 +4,7 @@ import { useShop } from '../context/ShopContext';
 import { useSettings } from '../context/SettingsContext';
 import { deliveryFees, formatTaka, freeDeliveryAbove } from '../data/products';
 import { IconCash, IconCheck, IconLeaf, IconShield, IconTruck } from '../components/Icons';
+import { dprSet, thumb } from '../utils/image';
 
 const slots = ['সকাল ১০টা – দুপুর ২টা', 'দুপুর ২টা – সন্ধ্যা ৬টা', 'সন্ধ্যা ৬টা – রাত ১০টা'];
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -272,7 +273,7 @@ export default function Checkout() {
               {cart.map((item) => (
                 <div className="summary-line" key={item.key}>
                   <span className="qty-badge">{item.qty}</span>
-                  <img src={item.image} alt={item.name} />
+                  <img src={thumb(item.image, 240)} srcSet={dprSet(item.image, 240, 480)} alt={item.name} decoding="async" />
                   <div>
                     <p>{item.name}</p>
                     <small>{item.sizeLabel || item.bn}</small>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
 import { freeDeliveryAbove, formatTaka } from '../data/products';
 import { IconCake, IconClose, IconMinus, IconPlus, IconTrash } from './Icons';
+import { dprSet, thumb } from '../utils/image';
 
 export default function CartDrawer() {
   const { cart, cartOpen, setCartOpen, cartCount, cartTotal, updateQty, removeItem } = useShop();
@@ -50,7 +51,7 @@ export default function CartDrawer() {
             <div className="drawer-items">
               {cart.map((item) => (
                 <div className="cart-line" key={item.key}>
-                  <img src={item.image} alt={item.name} />
+                  <img src={thumb(item.image, 240)} srcSet={dprSet(item.image, 240, 480)} alt={item.name} decoding="async" />
                   <div className="cart-line-main">
                     <Link to={`/product/${item.slug}`} onClick={() => setCartOpen(false)}>
                       {item.name}

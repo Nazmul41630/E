@@ -4,6 +4,7 @@ import HeroSlider from '../components/HeroSlider';
 import { IconArrow } from '../components/Icons';
 import { useCatalog } from '../context/CatalogContext';
 import { useSettings } from '../context/SettingsContext';
+import { dprSet, thumb } from '../utils/image';
 
 function SectionHead({ title, to, label = 'View All' }) {
   return (
@@ -48,7 +49,13 @@ export default function Home() {
               style={{ '--i': i }}
             >
               <span className="cat-img">
-                <img src={c.image} alt="" loading="lazy" />
+                <img
+                  src={thumb(c.image, 240)}
+                  srcSet={dprSet(c.image, 240, 480)}
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
               </span>
               <strong>{c.name}</strong>
               <small>{c.bn}</small>

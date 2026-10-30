@@ -5,6 +5,7 @@ import { formatTaka } from '../data/products';
 import { formatDeliveryDate } from '../data/orders';
 import { IconCart, IconTruck } from '../components/Icons';
 import OrderStatus, { StatusChip } from '../components/OrderStatus';
+import { dprSet, thumb } from '../utils/image';
 
 export default function Orders() {
   const { orders, addToCart, pushToast } = useShop();
@@ -70,7 +71,7 @@ export default function Orders() {
                 <div className="order-mid">
                   <div className="order-thumbs">
                     {order.items.slice(0, 4).map((item) => (
-                      <img key={item.key} src={item.image} alt={item.name} title={item.name} />
+                      <img key={item.key} src={thumb(item.image, 240)} srcSet={dprSet(item.image, 240, 480)} alt={item.name} title={item.name} decoding="async" />
                     ))}
                     {order.items.length > 4 && <span>+{order.items.length - 4}</span>}
                   </div>

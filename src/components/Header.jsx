@@ -12,6 +12,7 @@ import {
   IconUser,
   IconCake,
 } from './Icons';
+import { dprSet, thumb } from '../utils/image';
 
 const moreLinks = [
   { label: 'Offers', to: '/shop?sort=discount' },
@@ -101,7 +102,7 @@ export default function Header() {
             role="option"
             aria-selected="false"
           >
-            <img src={p.image} alt="" />
+            <img src={thumb(p.image, 240)} srcSet={dprSet(p.image, 240, 480)} alt="" loading="lazy" decoding="async" />
             <span>
               <strong>{p.name}</strong>
               <small>{p.bn}</small>

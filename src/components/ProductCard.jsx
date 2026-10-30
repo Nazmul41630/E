@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
 import { discountPercent, formatTaka } from '../data/products';
+import { dprSet, thumb } from '../utils/image';
 import { IconCart, IconStar } from './Icons';
 
 export function Stars({ rating, reviews, compact = false }) {
@@ -21,7 +22,13 @@ export default function ProductCard({ product, index = 0 }) {
     <article className="pcard reveal" style={{ '--i': index }}>
       <div className="pcard-media">
         <Link to={`/product/${product.slug}`} aria-label={product.name}>
-          <img src={product.image} alt={product.name} loading="lazy" />
+          <img
+            src={thumb(product.image, 480)}
+            srcSet={dprSet(product.image, 480, 760)}
+            alt={product.name}
+            loading="lazy"
+            decoding="async"
+          />
         </Link>
         {off > 0 && <span className="badge-off">-{off}%</span>}
         {product.badge && <span className="badge-tag">{product.badge}</span>}

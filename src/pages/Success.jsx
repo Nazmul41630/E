@@ -5,6 +5,7 @@ import { formatTaka } from '../data/products';
 import { formatDeliveryDate, isCancelled } from '../data/orders';
 import { IconCheck, IconWhatsapp } from '../components/Icons';
 import OrderStatus from '../components/OrderStatus';
+import { dprSet, thumb } from '../utils/image';
 
 export default function Success() {
   const { id } = useParams();
@@ -72,7 +73,7 @@ export default function Success() {
             {order.items.map((item) => (
               <div className="summary-line" key={item.key}>
                 <span className="qty-badge">{item.qty}</span>
-                <img src={item.image} alt={item.name} />
+                <img src={thumb(item.image, 240)} srcSet={dprSet(item.image, 240, 480)} alt={item.name} decoding="async" />
                 <div>
                   <p>{item.name}</p>
                   <small>{item.sizeLabel || item.bn}</small>

@@ -66,7 +66,7 @@ export default function ProductPage() {
         <div className="product-layout">
           <div className="product-media">
             <div className="product-img">
-              <img src={product.image} alt={product.name} />
+              <img src={product.image} alt={product.name} fetchPriority="high" decoding="async" />
               {off > 0 && <span className="badge-off big">-{off}%</span>}
               {product.badge && <span className="badge-tag big">{product.badge}</span>}
               {product.outOfStock && <span className="stock-label big">Out of Stock</span>}

@@ -98,6 +98,8 @@ export default function HeroSlider() {
                 src={banner.image}
                 alt={`${banner.title} ${banner.highlight}`}
                 loading={i === 0 ? 'eager' : 'lazy'}
+                fetchPriority={i === 0 ? 'high' : undefined}
+                decoding="async"
                 draggable="false"
               />
             </div>
